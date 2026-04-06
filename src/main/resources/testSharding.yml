@@ -1,0 +1,41 @@
+spring:
+  shardingsphere:
+    datasource:
+      names: dev
+      dev:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/dev?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+        username: root
+        password: 123456          # ← 修改成你自己的
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          connection-timeout: 30000
+
+    rules:
+      sharding:
+        tables:
+          t_device:                                      # 逻辑表名（你的代码里永远用这个）
+            actual-data-nodes: dev.t_device_${0..3}     # 实际拆成 4 张物理表
+            table-strategy:
+              standard:
+                sharding-column: device_id               # 分表键（强烈推荐用 device_id）
+                sharding-algorithm-name: hash_mod_4
+
+        sharding-algorithms:
+          hash_mod_4:                                    # 字符串也能完美分片
+            type: HASH_MOD
+            props:
+              sharding-count: 4                          # 分 4 张表（可改成 8、16）
+
+        # 分布式主键生成（必须！）
+        key-generators:
+          snowflake:
+            type: SNOWFLAKE
+            props:
+              worker-id: 1                               # 多实例部署时每个服务改成不同值
+
+    props:
+      sql-show: true                                 # 开发时打开，看到真实路由的 SQL
+      sql-comment-parse-enabled: true

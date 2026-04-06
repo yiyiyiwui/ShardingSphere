@@ -1,0 +1,46 @@
+## ============================================================
+## sharding.yml —— 单库分表（入门/中等数据量场景）
+## 场景：1个数据库（shardingsphere），2张分表（tb_order_0/1）
+## 分表键：order_id % 2 → tb_order_0 或 tb_order_1
+## ============================================================
+spring:
+  shardingsphere:
+    datasource:
+      names: db_master
+      db_master:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://localhost:3306/shardingsphere?useSSL=false&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+        username: root
+        password: 123456
+        hikari:
+          maximum-pool-size: 20
+          minimum-idle: 5
+          connection-timeout: 30000
+
+    rules:
+      sharding:
+        tables:
+          tb_order:
+            actual-data-nodes: db_master.tb_order_${0..1}  # 2张物理表
+            table-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: table_mod_2
+
+        sharding-algorithms:
+          table_mod_2:
+            type: MOD
+            props:
+              sharding-count: 2
+
+        # 分布式ID（分表后强烈建议用雪花算法替代数据库自增ID）
+        key-generators:
+          snowflake:
+            type: SNOWFLAKE
+            props:
+              worker-id: 1
+
+    props:
+      sql-show: true
+      sql-comment-parse-enabled: true

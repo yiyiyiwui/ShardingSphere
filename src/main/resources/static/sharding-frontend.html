@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShardingSphere 分库分表实验台</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    /* 亮色主题 (Light Theme) */
+    --bg: #ffffff;      /* 背景：白色 */
+    --bg2: #f8f9fa;     /* 卡片背景：浅灰白 */
+    --bg3: #e9ecef;     /* 输入框/次级背景：浅灰 */
+    --border: #dee2e6;  /* 边框：中灰色 */
+    --accent: #0d6efd;  /* 主色调：Bootstrap 蓝色 (代替原来的青色) */
+    --accent2: #6c757d; /* 次要色调：灰色 */
+    --accent3: #dc3545; /* 危险色：红色 */
+    --yellow: #ffc107;  /* 强调色：金色 */
+    --text: #212529;    /* 主文本：深灰 (接近黑色) */
+    --muted: #6c757d;   /* 次要文本：灰色 */
+    --mono: 'JetBrains Mono', monospace;
+    --sans: 'Noto Sans SC', sans-serif;
+  }
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: var(--bg); color: var(--text); font-family: var(--sans); min-height: 100vh; }
+
+/* grid bg */
+body::before {
+  content: '';
+  position: fixed; inset: 0;
+  background: repeating-linear-gradient(0deg,transparent,transparent 39px,var(--border) 39px,var(--border) 40px),
+              repeating-linear-gradient(90deg,transparent,transparent 39px,var(--border) 39px,var(--border) 40px);
+  opacity: .3; pointer-events: none; z-index: 0;
+}
+
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(11,13,18,.92); backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  display: flex; align-items: center; height: 56px; gap: 20px;
+}
+.logo { font-size: 20px; }
+header h1 { font-size: 15px; font-weight: 600; letter-spacing: -.2px; }
+header p { font-size: 12px; color: var(--muted); margin-left: 4px; }
+.base-input {
+  margin-left: auto;
+  background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+  padding: 6px 12px; color: var(--accent2); font-family: var(--mono); font-size: 12px;
+  outline: none; width: 200px;
+}
+
+/* layout */
+.layout { display: grid; grid-template-columns: 200px 1fr; position: relative; z-index: 1; }
+
+/* sidebar */
+nav { border-right: 1px solid var(--border); padding: 20px 0; position: sticky; top: 56px; height: calc(100vh - 56px); overflow-y: auto; }
+.nav-group { margin-bottom: 20px; }
+.nav-group-label { font-size: 10px; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase; color: var(--muted); padding: 0 16px; margin-bottom: 4px; }
+.nav-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 16px; background: none; border: none; cursor: pointer; font-size: 12px; color: var(--muted); font-family: var(--sans); text-align: left; border-radius: 0; transition: all .15s; }
+.nav-btn:hover { color: var(--text); background: rgba(255,255,255,.03); }
+.nav-btn.active { color: var(--accent); background: rgba(0,201,167,.08); border-right: 2px solid var(--accent); }
+.nav-dot { width: 5px; height: 5px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+main { padding: 28px 36px; max-width: 1000px; }
+
+/* sections */
+.sec { display: none; }
+.sec.active { display: block; }
+.sec-header { margin-bottom: 24px; }
+.sec-header h2 { font-size: 20px; font-weight: 700; }
+.sec-header p { font-size: 13px; color: var(--muted); margin-top: 6px; line-height: 1.6; }
+
+/* cards */
+.card { background: var(--bg2); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; margin-bottom: 16px; }
+.card-head { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; }
+.card-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; }
+.card-body { padding: 16px 18px; }
+.card-title { font-size: 13px; font-weight: 600; }
+.card-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+.tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: .5px; margin-left: auto; flex-shrink: 0; }
+.tag-green { background: rgba(0,201,167,.15); color: var(--accent); }
+.tag-blue { background: rgba(0,153,255,.15); color: var(--accent2); }
+.tag-red { background: rgba(255,107,107,.15); color: var(--accent3); }
+.tag-yellow { background: rgba(255,209,102,.15); color: var(--yellow); }
+
+/* buttons */
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; border-radius: 7px; border: none; cursor: pointer; font-size: 12px; font-weight: 500; font-family: var(--sans); transition: all .15s; }
+.btn-accent { background: rgba(0,201,167,.15); color: var(--accent); border: 1px solid rgba(0,201,167,.25); }
+.btn-accent:hover { background: rgba(0,201,167,.25); }
+.btn-blue { background: rgba(0,153,255,.15); color: var(--accent2); border: 1px solid rgba(0,153,255,.25); }
+.btn-blue:hover { background: rgba(0,153,255,.25); }
+.btn-red { background: rgba(255,107,107,.15); color: var(--accent3); border: 1px solid rgba(255,107,107,.25); }
+.btn-red:hover { background: rgba(255,107,107,.25); }
+.btn-yellow { background: rgba(255,209,102,.15); color: var(--yellow); border: 1px solid rgba(255,209,102,.25); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+
+/* input row */
+.irow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.irow label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.ifield { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 7px 11px; color: var(--text); font-family: var(--mono); font-size: 12px; outline: none; }
+.ifield:focus { border-color: var(--accent); }
+
+/* terminal output */
+.term { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; margin-top: 12px; display: none; }
+.term.show { display: block; }
+.term-bar { background: var(--bg3); padding: 7px 12px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border); }
+.term-dots { display: flex; gap: 4px; }
+.term-dots span { width: 9px; height: 9px; border-radius: 50%; }
+.term-label { font-family: var(--mono); font-size: 10px; color: var(--muted); flex: 1; }
+.term-ms { font-family: var(--mono); font-size: 10px; color: var(--yellow); }
+.term-body { padding: 12px 14px; font-family: var(--mono); font-size: 11px; line-height: 1.8; max-height: 360px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
+
+/* metrics grid */
+.metrics { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 14px; }
+.metric { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+.metric-label { font-size: 10px; color: var(--muted); margin-bottom: 6px; }
+.metric-val { font-size: 22px; font-weight: 600; font-family: var(--mono); color: var(--text); }
+.metric-unit { font-size: 11px; color: var(--muted); margin-left: 3px; }
+
+/* progress bar */
+.bar-wrap { margin-bottom: 10px; }
+.bar-label { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+.bar-label span:first-child { color: var(--muted); }
+.bar-label span:last-child { font-family: var(--mono); }
+.bar-track { background: var(--bg3); border-radius: 3px; height: 8px; overflow: hidden; border: 1px solid var(--border); }
+.bar-fill { height: 100%; border-radius: 3px; transition: width 1.2s cubic-bezier(.2,1,.3,1); }
+
+/* routing diagram */
+.route-diagram { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; font-size: 12px; }
+.route-box { background: var(--bg3); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; text-align: center; }
+.route-box small { font-size: 10px; color: var(--muted); display: block; margin-bottom: 2px; }
+.route-box strong { font-family: var(--mono); font-size: 12px; }
+.route-arrow { color: var(--muted); font-size: 16px; }
+.route-box.active-route { border-color: var(--accent); background: rgba(0,201,167,.06); }
+.route-box.active-route strong { color: var(--accent); }
+
+/* info box */
+.info { background: rgba(0,153,255,.07); border: 1px solid rgba(0,153,255,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.7; color: #87b5d8; margin-bottom: 14px; }
+.warn { background: rgba(255,209,102,.07); border: 1px solid rgba(255,209,102,.2); border-radius: 8px; padding: 10px 14px; font-size: 12px; line-height: 1.7; color: #c9a05a; margin-bottom: 14px; }
+
+/* strategy table */
+.strat-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 10px; }
+.strat-table th { background: var(--bg3); color: var(--muted); font-size: 10px; font-weight: 600; letter-spacing: .5px; text-transform: uppercase; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+.strat-table td { padding: 9px 12px; border-bottom: 1px solid var(--border); vertical-align: top; line-height: 1.5; }
+.strat-table tr:hover td { background: rgba(255,255,255,.015); }
+.strat-table code { font-family: var(--mono); font-size: 11px; color: var(--accent); background: rgba(0,201,167,.08); padding: 1px 5px; border-radius: 3px; }
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<header>
+  <span class="logo">🗄️</span>
+  <h1>ShardingSphere 分库分表实验台</h1>
+  <p>可视化对比分片前后性能</p>
+  <input class="base-input" id="baseUrl" value="http://localhost:9906" placeholder="后端地址">
+</header>
+
+<div class="layout">
+<nav>
+  <div class="nav-group">
+    <div class="nav-group-label">性能测试</div>
+    <button class="nav-btn active" onclick="show('bench-insert')"><span class="nav-dot"></span>批量插入测试</button>
+    <button class="nav-btn" onclick="show('bench-query')"><span class="nav-dot"></span>查询性能对比</button>
+    <button class="nav-btn" onclick="show('distribution')"><span class="nav-dot"></span>数据分布验证</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-label">分片操作</div>
+    <button class="nav-btn" onclick="show('shard-insert')"><span class="nav-dot"></span>插入（路由分析）</button>
+    <button class="nav-btn" onclick="show('shard-query')"><span class="nav-dot"></span>精准 vs 全路由</button>
+    <button class="nav-btn" onclick="show('shard-analyze')"><span class="nav-dot"></span>路由分析器</button>
+  </div>
+  <div class="nav-group">
+    <div class="nav-group-label">知识参考</div>
+    <button class="nav-btn" onclick="show('strategies')"><span class="nav-dot"></span>分片策略速查</button>
+    <button class="nav-btn" onclick="show('faq')"><span class="nav-dot"></span>常见问题解答</button>
+  </div>
+</nav>
+
+<main>
+
+<!-- ===== 批量插入测试 ===== -->
+<div class="sec active" id="sec-bench-insert">
+  <div class="sec-header">
+    <h2>⚡ 批量插入性能测试</h2>
+    <p>向分片表批量插入数据，观察插入速度与分片路由行为。同时可清空数据重新测试。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(0,201,167,.12)">📥</div>
+      <div><div class="card-title">批量插入分片表</div><div class="card-sub">数据按 order_id % 2 路由到 tb_order_0 / tb_order_1</div></div>
+      <span class="tag tag-green">INSERT</span>
+    </div>
+    <div class="card-body">
+      <div class="irow">
+        <label>插入条数：</label>
+        <input class="ifield" type="number" id="insert-count" value="1000" min="100" max="100000" style="width:90px">
+        <button class="btn btn-accent" id="btn-insert" onclick="runInsert()">▶ 开始插入</button>
+        <button class="btn btn-red" onclick="clearData()">🗑 清空数据</button>
+      </div>
+      <div class="warn">⚠️ 大批量（>5万条）插入较慢，建议先用1000~10000条测试。清空后方可重新插入。</div>
+      <div id="insert-metrics" class="metrics" style="display:none">
+        <div class="metric"><div class="metric-label">插入条数</div><div class="metric-val" id="m-count">-</div></div>
+        <div class="metric"><div class="metric-label">总耗时</div><div class="metric-val" id="m-ms">-<span class="metric-unit">ms</span></div></div>
+        <div class="metric"><div class="metric-label">耗时（秒）</div><div class="metric-val" id="m-sec">-<span class="metric-unit">s</span></div></div>
+        <div class="metric"><div class="metric-label">平均每条</div><div class="metric-val" id="m-avg">-<span class="metric-unit">ms</span></div></div>
+      </div>
+      <div class="term" id="term-insert">
+        <div class="term-bar"><div class="term-dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28c840"></span></div><span class="term-label">INSERT OUTPUT</span><span class="term-ms" id="ms-insert"></span></div>
+        <div class="term-body" id="out-insert"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(0,153,255,.12)">📊</div>
+      <div><div class="card-title">插入后立即验证分布</div><div class="card-sub">统计各分表数据量，验证 order_id % 2 分片均匀性</div></div>
+    </div>
+    <div class="card-body">
+      <button class="btn btn-blue" onclick="checkDist()">📊 查看数据分布</button>
+      <div id="dist-bars" style="margin-top:14px;display:none">
+        <div class="bar-wrap">
+          <div class="bar-label"><span>tb_order_0（偶数orderId）</span><span id="d0-val">-</span></div>
+          <div class="bar-track"><div class="bar-fill" id="d0-bar" style="width:0%;background:var(--accent)"></div></div>
+        </div>
+        <div class="bar-wrap">
+          <div class="bar-label"><span>tb_order_1（奇数orderId）</span><span id="d1-val">-</span></div>
+          <div class="bar-track"><div class="bar-fill" id="d1-bar" style="width:0%;background:var(--accent2)"></div></div>
+        </div>
+        <p id="dist-summary" style="font-size:12px;color:var(--muted);margin-top:8px"></p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 查询性能对比 ===== -->
+<div class="sec" id="sec-bench-query">
+  <div class="sec-header">
+    <h2>🔍 查询性能对比</h2>
+    <p>对比三种查询模式：精准路由（分片键等值）、全路由广播（非分片键）、全表统计。</p>
+  </div>
+  <div class="info">💡 <strong>前提：</strong>请先在"批量插入测试"页面插入一些数据，否则查询结果都是0。</div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(255,209,102,.12)">⏱</div>
+      <div><div class="card-title">三种查询模式耗时对比</div><div class="card-sub">相同数据量下，精准路由 vs 全路由的耗时差异</div></div>
+    </div>
+    <div class="card-body">
+      <div class="irow">
+        <label>orderId（用于精准路由）：</label>
+        <input class="ifield" type="number" id="q-orderid" value="50" style="width:80px">
+        <button class="btn btn-yellow" onclick="runQuery()">▶ 执行对比</button>
+      </div>
+      <div id="query-cmp" style="display:none;margin-top:14px">
+        <div class="bar-wrap">
+          <div class="bar-label"><span>① 精准路由（分片键 order_id）</span><span id="q1-ms" style="color:var(--accent)">-</span></div>
+          <div class="bar-track"><div class="bar-fill" id="q1-bar" style="width:0%;background:var(--accent)"></div></div>
+        </div>
+        <div class="bar-wrap" style="margin-top:8px">
+          <div class="bar-label"><span>② 全路由广播（非分片键 buyer_id）</span><span id="q2-ms" style="color:var(--accent3)">-</span></div>
+          <div class="bar-track"><div class="bar-fill" id="q2-bar" style="width:0%;background:var(--accent3)"></div></div>
+        </div>
+        <div class="bar-wrap" style="margin-top:8px">
+          <div class="bar-label"><span>③ 全量统计 SELECT COUNT(*)</span><span id="q3-ms" style="color:var(--yellow)">-</span></div>
+          <div class="bar-track"><div class="bar-fill" id="q3-bar" style="width:0%;background:var(--yellow)"></div></div>
+        </div>
+      </div>
+      <div class="term" id="term-query">
+        <div class="term-bar"><div class="term-dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28c840"></span></div><span class="term-label">QUERY BENCHMARK OUTPUT</span><span class="term-ms" id="ms-query"></span></div>
+        <div class="term-body" id="out-query"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 数据分布 ===== -->
+<div class="sec" id="sec-distribution">
+  <div class="sec-header">
+    <h2>📊 数据分布验证</h2>
+    <p>验证分片算法是否将数据均匀分布到各物理表，以及各分表的数据量统计。</p>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(0,201,167,.12)">🗂</div>
+      <div><div class="card-title">分片数据分布</div><div class="card-sub">MOD 算法理论上分布非常均匀（偶数→_0，奇数→_1）</div></div>
+    </div>
+    <div class="card-body">
+      <button class="btn btn-accent" onclick="loadFullDist()">🔄 加载分布数据</button>
+      <div id="full-dist" style="margin-top:14px">
+        <p style="font-size:12px;color:var(--muted)">点击按钮加载各分表数据量</p>
+      </div>
+      <div class="term" id="term-dist">
+        <div class="term-bar"><div class="term-dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28c840"></span></div><span class="term-label">DISTRIBUTION OUTPUT</span></div>
+        <div class="term-body" id="out-dist"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 分片插入 ===== -->
+<div class="sec" id="sec-shard-insert">
+  <div class="sec-header">
+    <h2>🎯 插入路由分析</h2>
+    <p>插入一条订单，实时展示 ShardingSphere 将其路由到哪张物理表。</p>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(0,201,167,.12)">➕</div>
+      <div><div class="card-title">单条插入 + 路由可视化</div><div class="card-sub">根据 order_id % 2 计算目标表</div></div>
+    </div>
+    <div class="card-body">
+      <div class="irow">
+        <label>orderId：</label><input class="ifield" type="number" id="si-oid" value="10" style="width:70px">
+        <label>sellerId：</label><input class="ifield" type="number" id="si-sid" value="100" style="width:70px">
+        <label>buyerId：</label><input class="ifield" type="number" id="si-bid" value="200" style="width:70px">
+        <button class="btn btn-accent" onclick="insertOne()">▶ 插入</button>
+      </div>
+      <div id="insert-route" class="route-diagram" style="display:none">
+        <div class="route-box"><small>逻辑表</small><strong>tb_order</strong></div>
+        <span class="route-arrow">→</span>
+        <div class="route-box"><small>分片键</small><strong id="r-key">orderId=10</strong></div>
+        <span class="route-arrow">→</span>
+        <div class="route-box"><small>算法</small><strong id="r-algo">10 % 2 = 0</strong></div>
+        <span class="route-arrow">→</span>
+        <div class="route-box active-route"><small>物理表</small><strong id="r-target">tb_order_0</strong></div>
+      </div>
+      <div class="term" id="term-si">
+        <div class="term-bar"><div class="term-dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28c840"></span></div><span class="term-label">INSERT ROUTE OUTPUT</span></div>
+        <div class="term-body" id="out-si"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 精准 vs 全路由 ===== -->
+<div class="sec" id="sec-shard-query">
+  <div class="sec-header">
+    <h2>🔀 精准路由 vs 全路由广播</h2>
+    <p>直观对比：带分片键查询（只查1张表）和不带分片键查询（查所有表）的区别。</p>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(0,153,255,.12)">🎯</div>
+      <div><div class="card-title">精准路由查询（带分片键）</div><div class="card-sub">WHERE order_id = ? → 只命中一张分表</div></div>
+      <span class="tag tag-green">推荐</span>
+    </div>
+    <div class="card-body">
+      <div class="irow">
+        <label>orderId：</label>
+        <input class="ifield" type="number" id="pq-oid" value="10" style="width:80px">
+        <button class="btn btn-accent" onclick="preciseQuery()">▶ 精准查询</button>
+      </div>
+      <div class="term" id="term-pq">
+        <div class="term-bar"><div class="term-dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28c840"></span></div><span class="term-label">PRECISE ROUTE OUTPUT</span><span class="term-ms" id="ms-pq"></span></div>
+        <div class="term-body" id="out-pq"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(255,107,107,.12)">📡</div>
+      <div><div class="card-title">全路由广播查询（非分片键）</div><div class="card-sub">WHERE buyer_id = ? → 广播到所有分表，再合并</div></div>
+      <span class="tag tag-red">性能差</span>
+    </div>
+    <div class="card-body">
+      <div class="irow">
+        <label>buyerId：</label>
+        <input class="ifield" type="number" id="bq-bid" value="15" style="width:80px">
+        <button class="btn btn-red" onclick="broadcastQuery()">▶ 广播查询</button>
+      </div>
+      <div class="warn">⚠️ 非分片键查询会扫描所有分表，数据量大时性能显著下降。建议加二级索引或使用 ES。</div>
+      <div class="term" id="term-bq">
+        <div class="term-bar"><div class="term-dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28c840"></span></div><span class="term-label">BROADCAST ROUTE OUTPUT</span><span class="term-ms" id="ms-bq"></span></div>
+        <div class="term-body" id="out-bq"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 路由分析器 ===== -->
+<div class="sec" id="sec-shard-analyze">
+  <div class="sec-header">
+    <h2>🧮 路由分析器</h2>
+    <p>输入 orderId，不执行 SQL，纯粹推算该订单在不同分片策略下会被路由到哪个库/表。</p>
+  </div>
+  <div class="card">
+    <div class="card-head">
+      <div class="card-icon" style="background:rgba(255,209,102,.12)">🔬</div>
+      <div><div class="card-title">实时路由计算</div><div class="card-sub">推算两种分片方案的路由结果</div></div>
+    </div>
+    <div class="card-body">
+      <div class="irow">
+        <label>orderId：</label>
+        <input class="ifield" type="number" id="an-oid" value="15" style="width:80px" oninput="calcRoute()">
+      </div>
+      <div id="route-result" style="margin-top:10px">
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">单库分表（db_master）</p>
+        <div class="route-diagram">
+          <div class="route-box"><small>逻辑表</small><strong>tb_order</strong></div>
+          <span class="route-arrow">→</span>
+          <div class="route-box"><small>order_id % 2</small><strong id="an-mod2">-</strong></div>
+          <span class="route-arrow">→</span>
+          <div class="route-box active-route"><small>物理表</small><strong id="an-t2">-</strong></div>
+        </div>
+        <p style="font-size:12px;font-weight:600;color:var(--muted);margin:12px 0 8px">多库多表（db_0 / db_1）</p>
+        <div class="route-diagram">
+          <div class="route-box"><small>逻辑表</small><strong>tb_order</strong></div>
+          <span class="route-arrow">→</span>
+          <div class="route-box"><small>order_id % 2</small><strong id="an-db">-</strong></div>
+          <span class="route-arrow">→</span>
+          <div class="route-box"><small>order_id % 3</small><strong id="an-mod3">-</strong></div>
+          <span class="route-arrow">→</span>
+          <div class="route-box active-route"><small>完整路径</small><strong id="an-full">-</strong></div>
+        </div>
+      </div>
+      <button class="btn btn-yellow" onclick="serverAnalyze()" style="margin-top:12px">🔍 服务端分析</button>
+      <div class="term" id="term-an">
+        <div class="term-bar"><div class="term-dots"><span style="background:#ff5f57"></span><span style="background:#ffbd2e"></span><span style="background:#28c840"></span></div><span class="term-label">ANALYZE OUTPUT</span></div>
+        <div class="term-body" id="out-an"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 分片策略 ===== -->
+<div class="sec" id="sec-strategies">
+  <div class="sec-header">
+    <h2>📚 分片策略速查表</h2>
+    <p>ShardingSphere 内置策略选型指南及适用场景。</p>
+  </div>
+  <div class="card">
+    <div class="card-head"><div class="card-title" style="padding:0">内置分片算法对比</div></div>
+    <div class="card-body" style="padding:0">
+      <table class="strat-table">
+        <thead><tr><th>算法类型</th><th>配置 type</th><th>适用场景</th><th>优点</th><th>缺点</th></tr></thead>
+        <tbody>
+          <tr><td>取模 MOD</td><td><code>MOD</code></td><td>用户ID、订单ID均匀分布</td><td>分布均匀，路由简单</td><td>扩容需迁移数据</td></tr>
+          <tr><td>哈希取模 HASH_MOD</td><td><code>HASH_MOD</code></td><td>字符串类型分片键（如UUID）</td><td>均匀分布字符串</td><td>扩容需迁移</td></tr>
+          <tr><td>范围 RANGE</td><td><code>RANGE</code></td><td>时间范围、ID范围按区间分</td><td>范围查询精准路由，无全路由</td><td>可能热点（最新分片更忙）</td></tr>
+          <tr><td>行内表达式 INLINE</td><td><code>INLINE</code></td><td>简单自定义公式</td><td>灵活，可写 Groovy 表达式</td><td>不支持范围查询精准路由</td></tr>
+          <tr><td>复合分片 COMPLEX</td><td><code>COMPLEX</code></td><td>多个分片键组合决定路由</td><td>灵活，支持多列</td><td>实现复杂</td></tr>
+          <tr><td>Hint 强制路由</td><td><code>HINT</code></td><td>代码手动指定目标库/表</td><td>完全自定义路由</td><td>代码侵入性强</td></tr>
+          <tr><td>不分片（NONE）</td><td>不配 sharding</td><td>数据量小、不需要分片的表</td><td>简单，无额外开销</td><td>-</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-head"><div class="card-title" style="padding:0">实际项目选型建议</div></div>
+    <div class="card-body">
+      <table class="strat-table">
+        <thead><tr><th>场景</th><th>推荐策略</th><th>分片键选择</th></tr></thead>
+        <tbody>
+          <tr><td>电商订单表（按用户查询为主）</td><td>MOD 按用户ID分库</td><td>user_id（保证同一用户订单在同库，避免跨库JOIN）</td></tr>
+          <tr><td>日志/流水表（按时间查询为主）</td><td>RANGE 按月/年分表</td><td>create_time（按时间范围查询精准路由）</td></tr>
+          <tr><td>商品表（全局查询多）</td><td>广播表（不分片）</td><td>无（数据量小，所有库都存一份）</td></tr>
+          <tr><td>用户表（亿级）</td><td>MOD + 一致性哈希</td><td>user_id（预留扩容空间）</td></tr>
+          <tr><td>消息表（超大量）</td><td>范围 + 取模组合</td><td>先按年分库，再按 msg_id % N 分表</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ===== FAQ ===== -->
+<div class="sec" id="sec-faq">
+  <div class="sec-header">
+    <h2>❓ 分库分表常见问题</h2>
+    <p>实际业务中最常遇到的问题与解决方案。</p>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(255,107,107,.12)">🔴</div><div><div class="card-title">Q1：分表后别的服务怎么查询？需要也配置 ShardingSphere 吗？</div></div></div>
+    <div class="card-body">
+      <p style="font-size:13px;line-height:1.8;color:var(--muted)">
+        <strong style="color:var(--text)">需要。</strong> ShardingSphere JDBC 是客户端分片，每个需要查询分片表的服务都要引入依赖并配置分片规则。
+        逻辑上你写的是 <code style="font-family:var(--mono);font-size:11px">SELECT * FROM tb_order WHERE order_id=10</code>，
+        ShardingSphere 在 JDBC 层拦截、改写、路由到 <code style="font-family:var(--mono);font-size:11px">tb_order_0</code>，完全透明。
+        <br><br>
+        <strong style="color:var(--text)">只需三步：</strong>① 引入 shardingsphere-jdbc-core-spring-boot-starter 依赖
+        ② 把 sharding.yml 复制到项目 resources 下
+        ③ application.yml 中 spring.config.import: classpath:sharding.yml
+        <br><br>
+        代码层面 <strong style="color:var(--text)">完全不需要改</strong>，MyBatis/JPA 照常写，分片逻辑全在配置文件里。
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(255,209,102,.12)">🟡</div><div><div class="card-title">Q2：分表后 ID 重复怎么办？还能用数据库自增吗？</div></div></div>
+    <div class="card-body">
+      <p style="font-size:13px;line-height:1.8;color:var(--muted)">
+        <strong style="color:var(--text)">不能用数据库自增！</strong> tb_order_0 和 tb_order_1 各自自增，id 会重复。<br>
+        解决方案：① <strong style="color:var(--text)">ShardingSphere 雪花算法</strong>（推荐，配置 key-generators 即可，全局唯一）
+        ② UUID ③ 自建 ID 生成服务（如百度 uid-generator、美团 Leaf）
+        <br><br>在 sharding.yml 中配置后，@TableId(type = IdType.ASSIGN_ID) 或不设类型，MyBatisPlus 会用雪花ID。
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(0,201,167,.12)">🟢</div><div><div class="card-title">Q3：分表后分页查询（LIMIT）怎么处理？</div></div></div>
+    <div class="card-body">
+      <p style="font-size:13px;line-height:1.8;color:var(--muted)">
+        分片分页是著名的坑。ShardingSphere 会对每个分表执行 LIMIT，然后在内存中归并排序再截取。
+        例如 <code style="font-family:var(--mono);font-size:11px">LIMIT 1000000, 10</code> 会在内存中拉取 200万行然后丢掉前100万！<br>
+        <strong style="color:var(--text)">解决方案：</strong> ① 带分片键查询，让页码落在单表（最推荐）
+        ② 游标分页（WHERE id > lastId LIMIT N），避免大偏移量
+        ③ 用 ES 做分页查询，DB 只用来查单条数据
+      </p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-head"><div class="card-icon" style="background:rgba(0,153,255,.12)">🔵</div><div><div class="card-title">Q4：需要单独的配置文件吗？怎么整合到已有项目？</div></div></div>
+    <div class="card-body">
+      <p style="font-size:13px;line-height:1.8;color:var(--muted)">
+        <strong style="color:var(--text)">强烈建议单独文件。</strong> 把分片规则放在 sharding.yml，在 application.yml 中用
+        <code style="font-family:var(--mono);font-size:11px">spring.config.import: classpath:sharding.yml</code> 引入。
+        这样分片配置和业务配置解耦，切换策略只改一行 import，不影响其他配置。<br>
+        同时删掉 application.yml 里原来的 <code style="font-family:var(--mono);font-size:11px">spring.datasource</code>，
+        因为 ShardingSphere 会接管数据源。
+      </p>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+
+<script>
+const BASE = () => document.getElementById('baseUrl').value.replace(/\/$/, '');
+
+function show(id) {
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  event.currentTarget.classList.add('active');
+}
+
+function colorize(json) {
+  return json
+    .replace(/("[\w\u4e00-\u9fa5\s（）【】，。：～·\/\-\.✅⚠️💥]+")(\s*:)/g, '<span style="color:#87b5d8">$1</span>$2')
+    .replace(/:\s*(".*?")/g, ': <span style="color:#ffd166">$1</span>')
+    .replace(/:\s*(\d+\.?\d*)/g, ': <span style="color:#ff8c42">$1</span>')
+    .replace(/:\s*(true|false)/g, ': <span style="color:#c678dd">$1</span>');
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(BASE() + path, opts);
+  return res.json();
+}
+
+function showTerm(id, content, ms) {
+  const t = document.getElementById('term-' + id);
+  t.classList.add('show');
+  document.getElementById('out-' + id).innerHTML = colorize(JSON.stringify(content, null, 2));
+  const msEl = document.getElementById('ms-' + id);
+  if (msEl && ms !== undefined) msEl.textContent = ms + 'ms';
+}
+
+// ===== INSERT =====
+async function runInsert() {
+  const count = +document.getElementById('insert-count').value;
+  const btn = document.getElementById('btn-insert');
+  btn.disabled = true; btn.textContent = '⏳ 插入中...';
+  document.getElementById('insert-metrics').style.display = 'none';
+
+  const t0 = Date.now();
+  try {
+    const data = await api(`/bench/insert?count=${count}`, { method: 'POST' });
+    const ms = Date.now() - t0;
+    document.getElementById('insert-metrics').style.display = 'grid';
+    document.getElementById('m-count').textContent = data['插入条数'] || count;
+    document.getElementById('m-ms').innerHTML = (data['分片表插入耗时ms'] || ms) + '<span class="metric-unit">ms</span>';
+    document.getElementById('m-sec').innerHTML = (data['分片表插入耗时秒'] || (ms/1000).toFixed(2)) + '<span class="metric-unit">s</span>';
+    document.getElementById('m-avg').innerHTML = (data['平均每条耗时ms'] || (ms/count).toFixed(2)) + '<span class="metric-unit">ms</span>';
+    showTerm('insert', data, ms);
+  } catch(e) {
+    showTerm('insert', { error: e.message, tip: '请确保后端已启动' }, 0);
+  }
+  btn.disabled = false; btn.textContent = '▶ 开始插入';
+}
+
+async function clearData() {
+  if (!confirm('确定清空所有分片表数据？')) return;
+  try {
+    const data = await api('/bench/clear', { method: 'DELETE' });
+    showTerm('insert', data, 0);
+    document.getElementById('insert-metrics').style.display = 'none';
+  } catch(e) { alert('清空失败: ' + e.message); }
+}
+
+async function checkDist() {
+  try {
+    const data = await api('/bench/distribution');
+    const d0 = data['tb_order_0（偶数orderId路由）'] || 0;
+    const d1 = data['tb_order_1（奇数orderId路由）'] || 0;
+    const total = d0 + d1;
+    const max = Math.max(d0, d1, 1);
+    document.getElementById('d0-val').textContent = d0 + ' 条';
+    document.getElementById('d1-val').textContent = d1 + ' 条';
+    document.getElementById('d0-bar').style.width = (d0 / max * 100) + '%';
+    document.getElementById('d1-bar').style.width = (d1 / max * 100) + '%';
+    document.getElementById('dist-summary').textContent =
+      `合计 ${total} 条 | 分布均匀度: ${data['分布均匀度'] || '计算中'}`;
+    document.getElementById('dist-bars').style.display = 'block';
+  } catch(e) { alert('查询失败: ' + e.message); }
+}
+
+// ===== QUERY BENCH =====
+async function runQuery() {
+  const orderId = document.getElementById('q-orderid').value;
+  const t0 = Date.now();
+  try {
+    const data = await api(`/bench/query?orderId=${orderId}`);
+    const ms = Date.now() - t0;
+
+    const q1ms = data['① 精准路由查询']?.['耗时ms'] || 1;
+    const q2ms = data['② 全路由广播查询']?.['耗时ms'] || 1;
+    const q3ms = data['③ 全量统计']?.['耗时ms'] || 1;
+    const maxMs = Math.max(q1ms, q2ms, q3ms, 1);
+
+    document.getElementById('query-cmp').style.display = 'block';
+    document.getElementById('q1-ms').textContent = q1ms + 'ms';
+    document.getElementById('q2-ms').textContent = q2ms + 'ms';
+    document.getElementById('q3-ms').textContent = q3ms + 'ms';
+    document.getElementById('q1-bar').style.width = Math.max(q1ms/maxMs*100, 2) + '%';
+    document.getElementById('q2-bar').style.width = Math.max(q2ms/maxMs*100, 2) + '%';
+    document.getElementById('q3-bar').style.width = Math.max(q3ms/maxMs*100, 2) + '%';
+    showTerm('query', data, ms);
+  } catch(e) { showTerm('query', { error: e.message }, 0); }
+}
+
+// ===== DISTRIBUTION =====
+async function loadFullDist() {
+  try {
+    const data = await api('/bench/distribution');
+    document.getElementById('full-dist').innerHTML = `
+      <div class="metrics">
+        <div class="metric"><div class="metric-label">tb_order_0</div><div class="metric-val">${data['tb_order_0（偶数orderId路由）'] || 0}</div></div>
+        <div class="metric"><div class="metric-label">tb_order_1</div><div class="metric-val">${data['tb_order_1（奇数orderId路由）'] || 0}</div></div>
+        <div class="metric"><div class="metric-label">合计</div><div class="metric-val">${data['合计'] || 0}</div></div>
+      </div>
+      <p style="font-size:12px;color:var(--muted)">均匀度: ${data['分布均匀度'] || '-'}</p>`;
+    showTerm('dist', data, undefined);
+  } catch(e) { showTerm('dist', { error: e.message }, undefined); }
+}
+
+// ===== SHARD INSERT =====
+async function insertOne() {
+  const oid = +document.getElementById('si-oid').value;
+  const sid = +document.getElementById('si-sid').value;
+  const bid = +document.getElementById('si-bid').value;
+
+  // Pre-compute route
+  const mod = oid % 2;
+  document.getElementById('r-key').textContent = 'orderId=' + oid;
+  document.getElementById('r-algo').textContent = oid + ' % 2 = ' + mod;
+  document.getElementById('r-target').textContent = 'tb_order_' + mod;
+  document.getElementById('insert-route').style.display = 'flex';
+
+  try {
+    const data = await api('/sharding/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId: oid, sellerId: sid, buyerId: bid })
+    });
+    showTerm('si', data, undefined);
+  } catch(e) { showTerm('si', { error: e.message }, undefined); }
+}
+
+// ===== PRECISE QUERY =====
+async function preciseQuery() {
+  const oid = document.getElementById('pq-oid').value;
+  const t0 = Date.now();
+  try {
+    const data = await api(`/sharding/orders/by-order-id?orderId=${oid}`);
+    showTerm('pq', data, Date.now() - t0);
+  } catch(e) { showTerm('pq', { error: e.message }, 0); }
+}
+
+async function broadcastQuery() {
+  const bid = document.getElementById('bq-bid').value;
+  const t0 = Date.now();
+  try {
+    const data = await api(`/sharding/orders/by-buyer?buyerId=${bid}`);
+    showTerm('bq', data, Date.now() - t0);
+  } catch(e) { showTerm('bq', { error: e.message }, 0); }
+}
+
+// ===== ANALYZE =====
+function calcRoute() {
+  const oid = +document.getElementById('an-oid').value || 0;
+  document.getElementById('an-mod2').textContent = oid + ' % 2 = ' + (oid%2);
+  document.getElementById('an-t2').textContent = 'tb_order_' + (oid%2);
+  document.getElementById('an-db').textContent = 'db_' + (oid%2);
+  document.getElementById('an-mod3').textContent = oid + ' % 3 = ' + (oid%3);
+  document.getElementById('an-full').textContent = 'db_' + (oid%2) + '.tb_order_' + (oid%3);
+}
+calcRoute();
+
+async function serverAnalyze() {
+  const oid = document.getElementById('an-oid').value;
+  try {
+    const data = await api(`/sharding/analyze?orderId=${oid}`);
+    showTerm('an', data, undefined);
+  } catch(e) { showTerm('an', { error: e.message }, undefined); }
+}
+</script>
+</body>
+</html>

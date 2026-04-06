@@ -1,0 +1,14 @@
+spring:
+  config: # 携带附属配置文件一起加载
+    import: classpath:sharding.yml      # 单库分表
+    # import: classpath:sharding-01.yml  # 多库多表（注释掉上面，打开这行）
+    # import: classpath:sharding-02.yml  # 不分片（基准对照）
+#     import: classpath:testSharding.yml  # 测试业务
+server:
+  port: 9906
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/*.xml   # 指定Mapper文件的位置
+  configuration:
+    map-underscore-to-camel-case: true  #自动将数据库列名中的下划线命名转换为驼峰命名，例如user_name会被映射为userName。
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl

@@ -1,0 +1,39 @@
+## 下面配置用于保存在当前数据库的当前tb_order表中   不分库分表，单独存在一个表
+spring:
+  shardingsphere:
+    datasource:
+      names: db_master # 只有一个数据源，叫 db_master
+      db_master:
+        type: com.zaxxer.hikari.HikariDataSource
+        driver-class-name: com.mysql.cj.jdbc.Driver
+        jdbc-url: jdbc:mysql://136.39.68.17:3306/liang # 连接地址变了：指向了一个远程 IP 的 liang 数据库
+        username: root
+        password: Root#1234 # 远程库的密码
+    rules:  # 分片规则
+      sharding:
+        tables:
+          tb_order:
+            actual-data-nodes: db_master.tb_order_0,db_master.tb_order_1,db_master.tb_order # 声明实际存在的物理表，这里列出了3张
+            database-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: database_inline
+            table-strategy:
+              standard:
+                sharding-column: order_id
+                sharding-algorithm-name: table_inline
+        sharding-algorithms:
+          database_inline:
+            type: INLINE
+            props:
+              algorithm-expression: db_master # 分库算法：强制路由到 db_master
+          table_inline:
+            type: INLINE
+            props:
+              # algorithm-expression: tb_order_${order_id % 2} # 这一行被注释掉了，不生效
+              algorithm-expression: tb_order # 分表算法：强制路由到 tb_order 这张表
+              # 结果就是：不管你代码里怎么传 order_id，数据最终都会存到 liang 库的 tb_order 表里。
+              # 这通常用于测试“不分片”的情况，或者作为默认表使用。
+    props:
+      sql-show: true # 打印 SQL
+      sql-comment-parse-enabled: true # 解析注释
